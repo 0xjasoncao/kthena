@@ -91,6 +91,7 @@ data:
         Filter:
           enabled:
             - least-request
+            - modelserver-least-request
           disabled:
             - lora-affinity
         Score:
@@ -138,6 +139,7 @@ data:
         Filter:
           enabled:
             - least-request
+            - modelserver-least-request
           disabled:
             - lora-affinity
         Score:
