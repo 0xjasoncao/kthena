@@ -169,3 +169,44 @@ func WaitForKthenaRouterModelRouteValidatingWebhook(ctx context.Context, kthenaC
 	}
 	return nil
 }
+
+// WaitForKthenaRouterModelServerValidatingWebhook polls until a dry-run ModelServer create
+// reaches the kthena-router webhook or the deadline is exceeded. logf may be nil.
+func WaitForKthenaRouterModelServerValidatingWebhook(ctx context.Context, kthenaClient *clientset.Clientset, modelServer *networkingv1alpha1.ModelServer, pollInterval, timeout time.Duration, logf func(string, ...any)) error {
+	if modelServer == nil {
+		return fmt.Errorf("model server probe is nil")
+	}
+	if pollInterval <= 0 {
+		pollInterval = 2 * time.Second
+	}
+	if timeout <= 0 {
+		timeout = 4 * time.Minute
+	}
+
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	var lastErr error
+	err := wait.PollUntilContextCancel(waitCtx, pollInterval, true, func(ctx context.Context) (bool, error) {
+		probe := modelServer.DeepCopy()
+		probe.Name = "ss-webhook-probe-" + RandomString(5)
+		_, err := kthenaClient.NetworkingV1alpha1().ModelServers(probe.Namespace).Create(ctx, probe, metav1.CreateOptions{DryRun: []string{"All"}})
+		if err != nil {
+			lastErr = err
+			if isTransientWebhookError(err) {
+				if logf != nil {
+					logf("kthena-router ModelServer validating webhook not ready yet, retrying: %v", err)
+				}
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
+	if err != nil {
+		if lastErr != nil {
+			return fmt.Errorf("%w (last error: %v)", err, lastErr)
+		}
+		return err
+	}
+	return nil
+}
