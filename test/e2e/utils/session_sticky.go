@@ -211,6 +211,8 @@ func SessionStickyCreateModelServer(
 	if customize != nil {
 		customize(ms)
 	}
+	require.NoError(t, WaitForKthenaRouterModelServerValidatingWebhook(ctx, kthenaClient, ms, 3*time.Second, 4*time.Minute, t.Logf),
+		"kthena-router ModelServer validating webhook did not become ready")
 	out, err := kthenaClient.NetworkingV1alpha1().ModelServers(testNamespace).Create(ctx, ms, metav1.CreateOptions{})
 	require.NoError(t, err)
 	return out
