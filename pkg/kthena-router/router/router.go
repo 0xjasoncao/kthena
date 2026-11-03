@@ -100,6 +100,7 @@ type Router struct {
 	apiExtension APIExtension
 
 	scheduler       scheduler.Scheduler
+	chainManager    *scheduler.ProfileChainManager
 	authenticator   *auth.JWTAuthenticator
 	store           datastore.Store
 	loadRateLimiter *ratelimit.TokenRateLimiter
@@ -152,6 +153,8 @@ func NewRouter(store datastore.Store, routerConfigPath string, transportRegistry
 
 	// Initialize tokenizer
 	tokenizerInstance := tokenizer.NewSimpleEstimateTokenizer()
+
+	chainManager := scheduler.NewProfileChainManager(store)
 
 	store.RegisterCallback("ModelRoute", func(data datastore.EventData) {
 		switch data.EventType {
@@ -216,9 +219,15 @@ func NewRouter(store datastore.Store, routerConfigPath string, transportRegistry
 		klog.Infof("accessLog.includeUpstreamUsage is set but access logging is disabled; upstream usage is not logged")
 	}
 
+	sched, err := scheduler.NewScheduler(store, routerConfig)
+	if err != nil {
+		klog.Fatalf("failed to create scheduler: %v", err)
+	}
+
 	return &Router{
 		store:             store,
-		scheduler:         scheduler.NewScheduler(store, routerConfig),
+		scheduler:         sched,
+		chainManager:      chainManager,
 		authenticator:     auth.NewJWTAuthenticator(routerConfig),
 		loadRateLimiter:   loadRateLimiter,
 		accessLogger:      accessLogger,
@@ -264,6 +273,11 @@ func reportedTokenCount(count int, reported bool) *int {
 		return nil
 	}
 	return &count
+}
+
+// ProfileChainManager exposes the router's plugin chain manager for the controllers.
+func (r *Router) ProfileChainManager() *scheduler.ProfileChainManager {
+	return r.chainManager
 }
 
 const defaultQueueTimeout = 60 * time.Second
@@ -720,6 +734,31 @@ func (r *Router) doLoadbalance(c *gin.Context, modelRequest ModelRequest) error 
 		UpstreamModel:   upstreamModelForMetrics,
 		PDGroup:         pdGroup,
 		MetricsRecorder: metricsRecorder,
+	}
+	// Resolve and acquire the plugin chain here (the ModelServer object is
+	// already at hand) and carry it on the context; Schedule and RunPostHooks
+	// reuse it. AcquireProfile marks the chain in use atomically with the
+	// lookup, so a chain returned here is guaranteed not retired/closed by a
+	// concurrent profile update or delete. A ModelServer without a profile
+	// reference serves on the global chain; a broken reference fails the
+	// request instead of falling back.
+	chain, resolveErr := r.chainManager.AcquireProfile(modelServer)
+	if resolveErr != nil {
+		klog.V(4).Infof("model %s: modelserver %s: failed to resolve scheduler profile: %v",
+			modelName, modelServer.Name, resolveErr)
+		accesslog.SetError(c, "scheduling", resolveErr.Error())
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable,
+			fmt.Sprintf("failed to resolve scheduler profile: %v", resolveErr))
+		return fmt.Errorf("failed to resolve scheduler profile: %w", resolveErr)
+	}
+	if chain != nil {
+		klog.V(4).Infof("model %s: modelserver %s: uses SchedulerProfile chain %s",
+			modelName, modelServer.Name, *modelServer.Spec.TrafficPolicy.LoadBalancer.SchedulerProfile)
+		// Released when doLoadbalance returns — RunPostHooks runs inside
+		// this call stack, so the close of a replaced chain waits until
+		// every in-flight request finished its post hooks.
+		defer chain.Release()
+		ctx.ScheduleChain = chain
 	}
 	if stickyBindingOK {
 		ctx.StickyPodName = stickyBinding.Pod
