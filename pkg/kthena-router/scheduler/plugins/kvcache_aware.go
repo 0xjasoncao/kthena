@@ -220,12 +220,7 @@ func NewKVCacheAware(buildCtx BuildContext) (*KVCacheAware, error) {
 		return plugin, nil
 	}
 
-	redisClient := utils.TryGetRedisClient()
-	if redisClient == nil {
-		return nil, fmt.Errorf("redis mode requires a reachable Redis; set indexMode to %q if Redis is not deployed", kvCacheIndexModeMemory)
-	}
-	klog.Infof("KVCacheAware: Redis client initialized successfully")
-	plugin.redisClient = redisClient
+	plugin.redisClient = utils.NewRedisClient()
 	plugin.startGC()
 	return plugin, nil
 }
