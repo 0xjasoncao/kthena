@@ -510,7 +510,8 @@ func (m *PluginChainManager) buildChain(profile *aiv1alpha1.SchedulerProfile) (c
 func (m *PluginChainManager) AcquireProfile(ms *aiv1alpha1.ModelServer) (*PluginChain, error) {
 	if ms == nil || ms.Spec.TrafficPolicy == nil ||
 		ms.Spec.TrafficPolicy.LoadBalancer == nil ||
-		ms.Spec.TrafficPolicy.LoadBalancer.SchedulerProfile == nil {
+		ms.Spec.TrafficPolicy.LoadBalancer.SchedulerProfile == nil ||
+		*ms.Spec.TrafficPolicy.LoadBalancer.SchedulerProfile == "" {
 		if ms != nil {
 			klog.V(4).Infof("modelserver %s/%s: uses the global plugin chain", ms.Namespace, ms.Name)
 		}

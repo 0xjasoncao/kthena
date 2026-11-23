@@ -212,6 +212,7 @@ type LoadBalancer struct {
 	// pods. When unset, the global router scheduler configuration applies.
 	// The profile must be in the same namespace as this ModelServer.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
 	SchedulerProfile *string `json:"schedulerProfile,omitempty"`
 }

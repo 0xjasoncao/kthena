@@ -260,7 +260,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `schedulerProfile` _string_ | SchedulerProfile references a SchedulerProfile CRD by name. The<br />referenced profile carries a whole scheduler plugin combination that<br />replaces the global scheduler configuration for this ModelServer's<br />pods. When unset, the global router scheduler configuration applies.<br />The profile must be in the same namespace as this ModelServer. |  | MaxLength: 253 <br /> |
+| `schedulerProfile` _string_ | SchedulerProfile references a SchedulerProfile CRD by name. The<br />referenced profile carries a whole scheduler plugin combination that<br />replaces the global scheduler configuration for this ModelServer's<br />pods. When unset, the global router scheduler configuration applies.<br />The profile must be in the same namespace as this ModelServer. |  | MaxLength: 253 <br />MinLength: 1 <br /> |
 
 
 #### ModelMatch

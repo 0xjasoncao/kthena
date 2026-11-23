@@ -183,6 +183,7 @@ spec:
                           pods. When unset, the global router scheduler configuration applies.
                           The profile must be in the same namespace as this ModelServer.
                         maxLength: 253
+                        minLength: 1
                         type: string
                     type: object
                   retry:
