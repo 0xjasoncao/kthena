@@ -54,7 +54,7 @@ func ValidateLeastRequestArgs(pluginArg runtime.RawExtension) error {
 	}
 
 	var leastRequestArgs LeastRequestArgs
-	if err := yaml.Unmarshal(pluginArg.Raw, &leastRequestArgs); err != nil {
+	if err := yaml.UnmarshalStrict(pluginArg.Raw, &leastRequestArgs); err != nil {
 		return fmt.Errorf("unmarshal least-request arguments: %w", err)
 	}
 

@@ -166,3 +166,13 @@ func TestLeastRequestFilterMaxWaitingRequests(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateLeastRequestArgsRejectsUnknownFields(t *testing.T) {
+	err := ValidateLeastRequestArgs(runtime.RawExtension{Raw: []byte(`{maxWaitingRequest: 4}`)})
+	if err == nil {
+		t.Fatal("expected unknown field maxWaitingRequest to be rejected")
+	}
+	if err := ValidateLeastRequestArgs(runtime.RawExtension{Raw: []byte(`{maxWaitingRequests: 4}`)}); err != nil {
+		t.Fatalf("expected valid args to pass, got %v", err)
+	}
+}

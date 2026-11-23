@@ -778,7 +778,7 @@ func ValidateKVCacheAwareArgs(pluginArg runtime.RawExtension) error {
 	}
 
 	var args KVCacheAwareArgs
-	if err := yaml.Unmarshal(pluginArg.Raw, &args); err != nil {
+	if err := yaml.UnmarshalStrict(pluginArg.Raw, &args); err != nil {
 		return fmt.Errorf("unmarshal kvcache-aware arguments: %w", err)
 	}
 

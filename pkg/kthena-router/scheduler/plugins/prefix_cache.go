@@ -306,7 +306,7 @@ func ValidatePrefixCacheArgs(pluginArg runtime.RawExtension) error {
 	}
 
 	var prefixCacheArgs PrefixCacheArgs
-	if err := yaml.Unmarshal(pluginArg.Raw, &prefixCacheArgs); err != nil {
+	if err := yaml.UnmarshalStrict(pluginArg.Raw, &prefixCacheArgs); err != nil {
 		return fmt.Errorf("unmarshal prefix-cache arguments: %w", err)
 	}
 

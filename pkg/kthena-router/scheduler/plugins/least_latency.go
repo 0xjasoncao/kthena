@@ -61,7 +61,7 @@ func ValidateLeastLatencyArgs(pluginArg runtime.RawExtension) error {
 	leastLatencyArgs := LeastLatencyArgs{
 		TTFTTPOTWeightFactor: defaultTTFTTPOTWeightFactor,
 	}
-	if err := yaml.Unmarshal(pluginArg.Raw, &leastLatencyArgs); err != nil {
+	if err := yaml.UnmarshalStrict(pluginArg.Raw, &leastLatencyArgs); err != nil {
 		return fmt.Errorf("unmarshal least-latency arguments: %w", err)
 	}
 
