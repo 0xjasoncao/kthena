@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -367,10 +368,13 @@ func (m *PluginChainManager) reconcileProfile(key types.NamespacedName, profileC
 
 	chain, err := m.buildChain(profile)
 	// A profile/ref change may have landed while plugins were being built.
-	// Only commit if the current state still calls for this exact version.
+	// Only commit if the current state still calls for this version. Compare
+	// by spec, not ResourceVersion: a metadata-only update replaces the stored
+	// object without a callback, and the built chain serves it just as well.
+	// Real spec changes always emit an event that re-reconciles later.
 	cur := m.store.GetSchedulerProfile(key)
 	stillReferenced := m.store.GetModelServerCountForSchedulerProfile(key) > 0
-	stale := cur == nil || cur.ResourceVersion != profile.ResourceVersion || !stillReferenced
+	stale := cur == nil || !reflect.DeepEqual(cur.Spec, profile.Spec) || !stillReferenced
 	m.mu.Lock()
 	if stale {
 		m.mu.Unlock()
@@ -378,6 +382,9 @@ func (m *PluginChainManager) reconcileProfile(key types.NamespacedName, profileC
 			chain.retire()
 		}
 		return
+	}
+	if err == nil {
+		chain.builtFrom = cur
 	}
 	var retired *PluginChain
 	if err != nil {
