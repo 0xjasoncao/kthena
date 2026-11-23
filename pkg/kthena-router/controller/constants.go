@@ -16,8 +16,15 @@ limitations under the License.
 
 package controller
 
+import "time"
+
 const (
 	maxRetries = 5
+
+	// profileResolutionPollInterval is how often the profile status
+	// controller re-checks a ModelServer while its profile build is still
+	// pending, so a build voided by profile deletion still resolves.
+	profileResolutionPollInterval = time.Second
 
 	// DefaultGatewayClassName is the name of the default GatewayClass for kthena-router
 	DefaultGatewayClassName = "kthena-router"

@@ -211,9 +211,11 @@ func (c *ProfileStatusController) reportSchedulerProfileCondition(ms *aiv1alpha1
 		// The chain build runs in an async store callback, so a just-created
 		// profile may not have finished building when this sync runs. A
 		// profile that the lister knows about is in-flight, not missing —
-		// keep the current condition and let the status-change signal
-		// re-trigger reporting.
+		// keep the current condition and poll until an outcome exists: the
+		// status-change signal does not fire for a build that a profile
+		// deletion voids before it commits.
 		if _, err := c.schedulerProfileLister.SchedulerProfiles(ms.Namespace).Get(ref); err == nil {
+			c.workqueue.AddAfter(ms.Namespace+"/"+ms.Name, profileResolutionPollInterval)
 			return nil
 		}
 	}
