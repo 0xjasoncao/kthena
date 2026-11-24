@@ -31,6 +31,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -307,14 +308,21 @@ func (t *KVCacheAware) Name() string {
 	return t.name
 }
 
-// Close stops the active mode's background workers and unregisters the pod
-// event callback. In-flight requests keep working against the index; it just
-// stops receiving updates.
+// Close stops the active mode's background workers, unregisters the pod
+// event callback, and closes the Redis client if one was created. In-flight
+// requests keep working against the index; it just stops receiving updates.
+// Runs only after the chain's in-flight count has drained.
 func (t *KVCacheAware) Close() error {
 	if t.modeStop != nil {
 		t.modeStop()
 		t.modeStop = nil
 		klog.V(2).Infof("KVCacheAware: stopped %s mode workers", t.indexMode)
+	}
+	if t.redisClient != nil {
+		// Tolerate ErrClosed so Close stays idempotent.
+		if err := t.redisClient.Close(); err != nil && !errors.Is(err, redis.ErrClosed) {
+			return err
+		}
 	}
 	return nil
 }
