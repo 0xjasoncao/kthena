@@ -330,6 +330,15 @@ func (m *PluginChainManager) reconcileProfile(key types.NamespacedName, profileC
 	profile := m.store.GetSchedulerProfile(key)
 	refCount := m.store.GetModelServerCountForSchedulerProfile(key)
 	if profile == nil || refCount == 0 {
+		// Nothing cached to clean up — skip the write lock; the stripe lock
+		// serializes writers for this key, so the check cannot go stale.
+		m.mu.RLock()
+		_, cachedChain := m.chains[key]
+		_, cachedErr := m.buildErrs[key]
+		m.mu.RUnlock()
+		if !cachedChain && !cachedErr {
+			return
+		}
 		m.mu.Lock()
 		old, hadChain := m.chains[key]
 		_, hadErr := m.buildErrs[key]
