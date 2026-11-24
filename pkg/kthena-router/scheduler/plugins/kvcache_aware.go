@@ -812,5 +812,8 @@ func ValidateKVCacheAwareArgs(pluginArg runtime.RawExtension) error {
 	if args.MaxBlocksPerPod < 0 {
 		return fmt.Errorf("maxBlocksPerPod must not be negative, got %d", args.MaxBlocksPerPod)
 	}
+	if args.TokenizerService != nil && args.TokenizerService.Enabled && args.TokenizerService.Endpoint == "" {
+		return fmt.Errorf("tokenizerService.endpoint must be set when tokenizerService is enabled")
+	}
 	return nil
 }
