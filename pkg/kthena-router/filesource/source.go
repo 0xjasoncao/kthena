@@ -418,12 +418,6 @@ func (s *Source) apply(next *resources) {
 	for _, profile := range next.profiles {
 		s.store.AddOrUpdateSchedulerProfile(profile)
 	}
-	for name := range s.applied.profiles {
-		if _, ok := next.profiles[name]; ok {
-			continue
-		}
-		s.store.DeleteSchedulerProfile(name)
-	}
 
 	for name, ms := range next.modelServers {
 		if len(ms.Spec.Endpoints) == 0 {
@@ -453,5 +447,12 @@ func (s *Source) apply(next *resources) {
 		if s.transports != nil {
 			s.transports.Delete(name)
 		}
+	}
+
+	for name := range s.applied.profiles {
+		if _, ok := next.profiles[name]; ok {
+			continue
+		}
+		s.store.DeleteSchedulerProfile(name)
 	}
 }
