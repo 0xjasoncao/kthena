@@ -256,12 +256,6 @@ func (s *kvEventSubscriber) targets() map[string]kvStreamTarget {
 	targets := make(map[string]kvStreamTarget)
 	pods := make(map[string][]string)
 	for name, info := range s.store.GetAllPods() {
-		owner := cacheOwnerIdentifier(name)
-		if scoped != nil {
-			if _, ok := scoped[owner]; !ok {
-				continue
-			}
-		}
 		pod := info.GetPod()
 		if pod == nil || pod.Status.Phase != corev1.PodRunning {
 			continue
@@ -270,8 +264,15 @@ func (s *kvEventSubscriber) targets() map[string]kvStreamTarget {
 		if ip == nil {
 			continue
 		}
-		targets[owner] = kvStreamTarget{uid: pod.UID, ip: ip.String()}
+
+		owner := cacheOwnerIdentifier(name)
 		pods[ip.String()] = append(pods[ip.String()], owner)
+		if scoped != nil {
+			if _, ok := scoped[owner]; !ok {
+				continue
+			}
+		}
+		targets[owner] = kvStreamTarget{uid: pod.UID, ip: ip.String()}
 	}
 	// Pods sharing an IP (e.g. hostNetwork pods on the same node) cannot be
 	// told apart: a stream from that IP may come from either pod's sidecar.
