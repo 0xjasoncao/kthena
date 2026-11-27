@@ -1437,10 +1437,8 @@ func validSchedulerProfile(name string) *networkingv1alpha1.SchedulerProfile {
 				{Name: "least-request", Args: runtime.RawExtension{Raw: []byte(`{"maxWaitingRequests": 10}`)}},
 			},
 			Plugins: networkingv1alpha1.Plugins{
-				Filter: networkingv1alpha1.Filter{Enabled: []string{"least-request"}},
-				Score: networkingv1alpha1.Score{
-					Enabled: []networkingv1alpha1.PluginWithWeight{{Name: "prefix-cache", Weight: 1}},
-				},
+				Filter: []string{"least-request"},
+				Score:  []networkingv1alpha1.PluginWithWeight{{Name: "prefix-cache", Weight: 1}},
 			},
 		},
 	}
@@ -1464,9 +1462,7 @@ func TestValidateSchedulerProfile(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "random-only", Namespace: "default"},
 				Spec: networkingv1alpha1.SchedulerProfileSpec{
 					Plugins: networkingv1alpha1.Plugins{
-						Score: networkingv1alpha1.Score{
-							Enabled: []networkingv1alpha1.PluginWithWeight{{Name: "random", Weight: 1}},
-						},
+						Score: []networkingv1alpha1.PluginWithWeight{{Name: "random", Weight: 1}},
 					},
 				},
 			},
@@ -1510,67 +1506,67 @@ func TestValidateSchedulerProfile(t *testing.T) {
 			name: "unknown filter plugin",
 			profile: func() *networkingv1alpha1.SchedulerProfile {
 				p := validSchedulerProfile("unknown-filter")
-				p.Spec.Plugins.Filter.Enabled = []string{"no-such-plugin"}
+				p.Spec.Plugins.Filter = []string{"no-such-plugin"}
 				return p
 			}(),
 			expectValid:    false,
-			expectedReason: "validation failed:   - spec.plugins.filter.enabled[0]: Invalid value: \"no-such-plugin\": unknown plugin name",
+			expectedReason: "validation failed:   - spec.plugins.filter[0]: Invalid value: \"no-such-plugin\": unknown plugin name",
 		},
 		{
 			name: "score plugin used as filter",
 			profile: func() *networkingv1alpha1.SchedulerProfile {
 				p := validSchedulerProfile("filter-role")
-				p.Spec.Plugins.Filter.Enabled = []string{"prefix-cache"}
+				p.Spec.Plugins.Filter = []string{"prefix-cache"}
 				return p
 			}(),
 			expectValid:    false,
-			expectedReason: "validation failed:   - spec.plugins.filter.enabled[0]: Invalid value: \"prefix-cache\": plugin \"prefix-cache\" cannot be used as a filter",
+			expectedReason: "validation failed:   - spec.plugins.filter[0]: Invalid value: \"prefix-cache\": plugin \"prefix-cache\" cannot be used as a filter",
 		},
 		{
 			name: "unknown score plugin",
 			profile: func() *networkingv1alpha1.SchedulerProfile {
 				p := validSchedulerProfile("unknown-score")
-				p.Spec.Plugins.Score.Enabled = []networkingv1alpha1.PluginWithWeight{{Name: "no-such-plugin", Weight: 1}}
+				p.Spec.Plugins.Score = []networkingv1alpha1.PluginWithWeight{{Name: "no-such-plugin", Weight: 1}}
 				return p
 			}(),
 			expectValid:    false,
-			expectedReason: "validation failed:   - spec.plugins.score.enabled[0].name: Invalid value: \"no-such-plugin\": unknown plugin name",
+			expectedReason: "validation failed:   - spec.plugins.score[0].name: Invalid value: \"no-such-plugin\": unknown plugin name",
 		},
 		{
 			name: "duplicate score plugin",
 			profile: func() *networkingv1alpha1.SchedulerProfile {
 				p := validSchedulerProfile("duplicate-score")
-				p.Spec.Plugins.Score.Enabled = []networkingv1alpha1.PluginWithWeight{
+				p.Spec.Plugins.Score = []networkingv1alpha1.PluginWithWeight{
 					{Name: "prefix-cache", Weight: 1},
 					{Name: "prefix-cache", Weight: 2},
 				}
 				return p
 			}(),
 			expectValid:    false,
-			expectedReason: "validation failed:   - spec.plugins.score.enabled[1].name: Duplicate value: \"prefix-cache\"",
+			expectedReason: "validation failed:   - spec.plugins.score[1].name: Duplicate value: \"prefix-cache\"",
 		},
 		{
 			name: "non-positive score weight",
 			profile: func() *networkingv1alpha1.SchedulerProfile {
 				p := validSchedulerProfile("zero-weight")
-				p.Spec.Plugins.Score.Enabled = []networkingv1alpha1.PluginWithWeight{{Name: "prefix-cache", Weight: 0}}
+				p.Spec.Plugins.Score = []networkingv1alpha1.PluginWithWeight{{Name: "prefix-cache", Weight: 0}}
 				return p
 			}(),
 			expectValid:    false,
-			expectedReason: "validation failed:   - spec.plugins.score.enabled[0].weight: Invalid value: 0: must be greater than 0",
+			expectedReason: "validation failed:   - spec.plugins.score[0].weight: Invalid value: 0: must be greater than 0",
 		},
 		{
 			name: "random mixed with other score plugins",
 			profile: func() *networkingv1alpha1.SchedulerProfile {
 				p := validSchedulerProfile("random-mixed")
-				p.Spec.Plugins.Score.Enabled = []networkingv1alpha1.PluginWithWeight{
+				p.Spec.Plugins.Score = []networkingv1alpha1.PluginWithWeight{
 					{Name: "random", Weight: 1},
 					{Name: "prefix-cache", Weight: 1},
 				}
 				return p
 			}(),
 			expectValid:    false,
-			expectedReason: "validation failed:   - spec.plugins.score.enabled: Invalid value: [\"random\",\"prefix-cache\"]: the random plugin must be the only score plugin",
+			expectedReason: "validation failed:   - spec.plugins.score: Invalid value: [\"random\",\"prefix-cache\"]: the random plugin must be the only score plugin",
 		},
 	}
 

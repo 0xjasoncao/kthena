@@ -306,7 +306,6 @@ metadata:
 spec:
   plugins:
     score:
-      enabled:
         - name: prefix-cache
           weight: 2
 `
@@ -321,9 +320,9 @@ func TestSourceLoadsSchedulerProfile(t *testing.T) {
 	key := types.NamespacedName{Namespace: "default", Name: "fast"}
 	profile := store.GetSchedulerProfile(key)
 	require.NotNil(t, profile)
-	require.Len(t, profile.Spec.Plugins.Score.Enabled, 1)
-	assert.Equal(t, "prefix-cache", profile.Spec.Plugins.Score.Enabled[0].Name)
-	assert.EqualValues(t, 2, profile.Spec.Plugins.Score.Enabled[0].Weight)
+	require.Len(t, profile.Spec.Plugins.Score, 1)
+	assert.Equal(t, "prefix-cache", profile.Spec.Plugins.Score[0].Name)
+	assert.EqualValues(t, 2, profile.Spec.Plugins.Score[0].Weight)
 
 	// Removing the file removes it from the store.
 	require.NoError(t, os.Remove(filepath.Join(dir, "profile.yaml")))
@@ -339,8 +338,7 @@ metadata:
   name: bad
 spec:
   plugins:
-    filter:
-      enabled: [no-such-plugin]
+    filter: [no-such-plugin]
 `)
 
 	source, _ := newTestSource(t, dir)
@@ -407,7 +405,7 @@ func TestSourceUpdatesSchedulerProfile(t *testing.T) {
 	require.NoError(t, source.sync())
 	key := types.NamespacedName{Namespace: "default", Name: "fast"}
 	require.NotNil(t, store.GetSchedulerProfile(key))
-	assert.EqualValues(t, 2, store.GetSchedulerProfile(key).Spec.Plugins.Score.Enabled[0].Weight)
+	assert.EqualValues(t, 2, store.GetSchedulerProfile(key).Spec.Plugins.Score[0].Weight)
 
 	writeManifest(t, dir, "profile.yaml", `apiVersion: networking.serving.volcano.sh/v1alpha1
 kind: SchedulerProfile
@@ -416,13 +414,12 @@ metadata:
 spec:
   plugins:
     score:
-      enabled:
         - name: prefix-cache
           weight: 7
 `)
 	require.NoError(t, source.sync())
 	require.NotNil(t, store.GetSchedulerProfile(key))
-	assert.EqualValues(t, 7, store.GetSchedulerProfile(key).Spec.Plugins.Score.Enabled[0].Weight)
+	assert.EqualValues(t, 7, store.GetSchedulerProfile(key).Spec.Plugins.Score[0].Weight)
 }
 
 func TestSourceRejectsCrossNamespaceProfileReference(t *testing.T) {
@@ -509,7 +506,6 @@ metadata:
 spec:
   plugins:
     score:
-      enabled:
         - name: prefix-cache
           weight: 0
 `)

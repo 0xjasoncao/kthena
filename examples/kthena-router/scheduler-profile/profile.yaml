@@ -19,14 +19,12 @@ spec:
     # Filter plugins run in list order and drop ineligible pods.
     # Available: least-request, lora-affinity
     filter:
-      enabled:
-      - least-request
+    - least-request
     # Score plugins rank the remaining pods; weighted scores are summed.
     # Available: gpu-usage, least-latency, least-request, prefix-cache,
     # kvcache-aware.
     score:
-      enabled:
-      - name: prefix-cache
-        weight: 1
-      - name: gpu-usage
-        weight: 1
+    - name: prefix-cache
+      weight: 1
+    - name: gpu-usage
+      weight: 1

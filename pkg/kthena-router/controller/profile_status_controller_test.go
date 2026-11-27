@@ -88,9 +88,7 @@ func builtProfile(name string) *aiv1alpha1.SchedulerProfile {
 		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: name},
 		Spec: aiv1alpha1.SchedulerProfileSpec{
 			Plugins: aiv1alpha1.Plugins{
-				Score: aiv1alpha1.Score{
-					Enabled: []aiv1alpha1.PluginWithWeight{{Name: "random", Weight: 1}},
-				},
+				Score: []aiv1alpha1.PluginWithWeight{{Name: "random", Weight: 1}},
 			},
 		},
 	}

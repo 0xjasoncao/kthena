@@ -629,20 +629,20 @@ func ValidateSchedulerProfile(profile *networkingv1alpha1.SchedulerProfile) (boo
 		}
 	}
 
-	validatePluginNames(profile.Spec.Plugins.Filter.Enabled, specField.Child("plugins", "filter", "enabled"))
-	for i, name := range profile.Spec.Plugins.Filter.Enabled {
+	validatePluginNames(profile.Spec.Plugins.Filter, specField.Child("plugins", "filter"))
+	for i, name := range profile.Spec.Plugins.Filter {
 		if !plugins.IsKnownPlugin(name) {
 			continue
 		}
 		if !plugins.SupportsFilterRole(name) {
 			allErrs = append(allErrs, field.Invalid(
-				specField.Child("plugins", "filter", "enabled").Index(i), name,
+				specField.Child("plugins", "filter").Index(i), name,
 				fmt.Sprintf("plugin %q cannot be used as a filter", name)))
 		}
 	}
-	scoreEnabledField := specField.Child("plugins", "score", "enabled")
+	scoreEnabledField := specField.Child("plugins", "score")
 	seenScores := sets.New[string]()
-	for i, pw := range profile.Spec.Plugins.Score.Enabled {
+	for i, pw := range profile.Spec.Plugins.Score {
 		pwField := scoreEnabledField.Index(i)
 		if !plugins.IsKnownPlugin(pw.Name) {
 			allErrs = append(allErrs, field.Invalid(pwField.Child("name"), pw.Name, "unknown plugin name"))
@@ -666,8 +666,8 @@ func ValidateSchedulerProfile(profile *networkingv1alpha1.SchedulerProfile) (boo
 
 	// Cross-plugin semantic rules (e.g. the random plugin must be the only
 	// score plugin) live in the scheduler package.
-	enabledScoreNames := make([]string, 0, len(profile.Spec.Plugins.Score.Enabled))
-	for _, pw := range profile.Spec.Plugins.Score.Enabled {
+	enabledScoreNames := make([]string, 0, len(profile.Spec.Plugins.Score))
+	for _, pw := range profile.Spec.Plugins.Score {
 		enabledScoreNames = append(enabledScoreNames, pw.Name)
 	}
 	if err := plugins.ValidateScorePluginCombination(enabledScoreNames); err != nil {

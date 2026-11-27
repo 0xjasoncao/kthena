@@ -1003,9 +1003,7 @@ func TestListSchedulerProfiles(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "fast", Namespace: "default"},
 		Spec: aiv1alpha1.SchedulerProfileSpec{
 			Plugins: aiv1alpha1.Plugins{
-				Score: aiv1alpha1.Score{
-					Enabled: []aiv1alpha1.PluginWithWeight{{Name: "prefix-cache", Weight: 2}},
-				},
+				Score: []aiv1alpha1.PluginWithWeight{{Name: "prefix-cache", Weight: 2}},
 			},
 		},
 	}
@@ -1024,8 +1022,8 @@ func TestListSchedulerProfiles(t *testing.T) {
 				require.Len(t, profiles, 1)
 				assert.Equal(t, "fast", profiles[0].Name)
 				assert.Equal(t, "default", profiles[0].Namespace)
-				require.Len(t, profiles[0].Spec.Plugins.Score.Enabled, 1)
-				assert.Equal(t, "prefix-cache", profiles[0].Spec.Plugins.Score.Enabled[0].Name)
+				require.Len(t, profiles[0].Spec.Plugins.Score, 1)
+				assert.Equal(t, "prefix-cache", profiles[0].Spec.Plugins.Score[0].Name)
 			},
 		},
 	}

@@ -57,10 +57,8 @@ func newModelServerWithProfileRef(namespace, name, profile string) *aiv1alpha1.M
 func validProfile(name string) *aiv1alpha1.SchedulerProfile {
 	return newTestProfile(name, aiv1alpha1.SchedulerProfileSpec{
 		Plugins: aiv1alpha1.Plugins{
-			Filter: aiv1alpha1.Filter{Enabled: []string{plugins.LeastRequestPluginName}},
-			Score: aiv1alpha1.Score{
-				Enabled: []aiv1alpha1.PluginWithWeight{{Name: plugins.PrefixCachePluginName, Weight: 1}},
-			},
+			Filter: []string{plugins.LeastRequestPluginName},
+			Score:  []aiv1alpha1.PluginWithWeight{{Name: plugins.PrefixCachePluginName, Weight: 1}},
 		},
 	})
 }
@@ -200,7 +198,7 @@ func TestPluginChainManager_BuildChainValidation(t *testing.T) {
 			name: "score-only plugin used as filter",
 			spec: aiv1alpha1.SchedulerProfileSpec{
 				Plugins: aiv1alpha1.Plugins{
-					Filter: aiv1alpha1.Filter{Enabled: []string{plugins.GPUCacheUsagePluginName}},
+					Filter: []string{plugins.GPUCacheUsagePluginName},
 				},
 			},
 			wantErr: "cannot be used as a filter",
@@ -209,7 +207,7 @@ func TestPluginChainManager_BuildChainValidation(t *testing.T) {
 			name: "unknown plugin as filter",
 			spec: aiv1alpha1.SchedulerProfileSpec{
 				Plugins: aiv1alpha1.Plugins{
-					Filter: aiv1alpha1.Filter{Enabled: []string{"no-such-plugin"}},
+					Filter: []string{"no-such-plugin"},
 				},
 			},
 			wantErr: "cannot be used as a filter",
@@ -218,7 +216,7 @@ func TestPluginChainManager_BuildChainValidation(t *testing.T) {
 			name: "duplicate filter",
 			spec: aiv1alpha1.SchedulerProfileSpec{
 				Plugins: aiv1alpha1.Plugins{
-					Filter: aiv1alpha1.Filter{Enabled: []string{plugins.LeastRequestPluginName, plugins.LeastRequestPluginName}},
+					Filter: []string{plugins.LeastRequestPluginName, plugins.LeastRequestPluginName},
 				},
 			},
 			wantErr: `duplicate plugin "least-request"`,
@@ -227,9 +225,7 @@ func TestPluginChainManager_BuildChainValidation(t *testing.T) {
 			name: "filter-only plugin used as score",
 			spec: aiv1alpha1.SchedulerProfileSpec{
 				Plugins: aiv1alpha1.Plugins{
-					Score: aiv1alpha1.Score{
-						Enabled: []aiv1alpha1.PluginWithWeight{{Name: plugins.LoraAffinityPluginName, Weight: 1}},
-					},
+					Score: []aiv1alpha1.PluginWithWeight{{Name: plugins.LoraAffinityPluginName, Weight: 1}},
 				},
 			},
 			wantErr: "cannot be used as a score plugin",
@@ -238,11 +234,9 @@ func TestPluginChainManager_BuildChainValidation(t *testing.T) {
 			name: "duplicate score",
 			spec: aiv1alpha1.SchedulerProfileSpec{
 				Plugins: aiv1alpha1.Plugins{
-					Score: aiv1alpha1.Score{
-						Enabled: []aiv1alpha1.PluginWithWeight{
-							{Name: plugins.GPUCacheUsagePluginName, Weight: 1},
-							{Name: plugins.GPUCacheUsagePluginName, Weight: 1},
-						},
+					Score: []aiv1alpha1.PluginWithWeight{
+						{Name: plugins.GPUCacheUsagePluginName, Weight: 1},
+						{Name: plugins.GPUCacheUsagePluginName, Weight: 1},
 					},
 				},
 			},
@@ -252,9 +246,7 @@ func TestPluginChainManager_BuildChainValidation(t *testing.T) {
 			name: "zero weight",
 			spec: aiv1alpha1.SchedulerProfileSpec{
 				Plugins: aiv1alpha1.Plugins{
-					Score: aiv1alpha1.Score{
-						Enabled: []aiv1alpha1.PluginWithWeight{{Name: plugins.GPUCacheUsagePluginName, Weight: 0}},
-					},
+					Score: []aiv1alpha1.PluginWithWeight{{Name: plugins.GPUCacheUsagePluginName, Weight: 0}},
 				},
 			},
 			wantErr: "weight must be greater than 0",
@@ -263,11 +255,9 @@ func TestPluginChainManager_BuildChainValidation(t *testing.T) {
 			name: "random combined with another score plugin",
 			spec: aiv1alpha1.SchedulerProfileSpec{
 				Plugins: aiv1alpha1.Plugins{
-					Score: aiv1alpha1.Score{
-						Enabled: []aiv1alpha1.PluginWithWeight{
-							{Name: plugins.RandomPluginName, Weight: 1},
-							{Name: plugins.GPUCacheUsagePluginName, Weight: 1},
-						},
+					Score: []aiv1alpha1.PluginWithWeight{
+						{Name: plugins.RandomPluginName, Weight: 1},
+						{Name: plugins.GPUCacheUsagePluginName, Weight: 1},
 					},
 				},
 			},
@@ -692,7 +682,7 @@ func TestPluginChainManager_UpdateReplacesChain(t *testing.T) {
 
 	second := newTestProfile("p1", aiv1alpha1.SchedulerProfileSpec{
 		Plugins: aiv1alpha1.Plugins{
-			Filter: aiv1alpha1.Filter{Enabled: []string{plugins.LoraAffinityPluginName}},
+			Filter: []string{plugins.LoraAffinityPluginName},
 		},
 	})
 	second.ResourceVersion = "200"

@@ -74,30 +74,20 @@ type PluginConfig struct {
 // Plugins declares the enabled filter and score plugins of a profile.
 // JSON names follow the Kubernetes API convention (lowerCamelCase); the
 // router ConfigMap keeps its capitalized keys.
+//
+// The list itself determines what is enabled: plugins absent from the list
+// are disabled for this profile.
 type Plugins struct {
-	// Filter declares the filter plugins enabled by this profile.
+	// Filter lists the filter plugin names enabled by this profile,
+	// executed in list order.
 	// +optional
-	Filter Filter `json:"filter,omitempty"`
-	// Score declares the score plugins enabled by this profile, each with
-	// its weight in the final score sum.
-	// +optional
-	Score Score `json:"score,omitempty"`
-}
-
-// Filter lists the filter plugins enabled by a profile.
-type Filter struct {
-	// Enabled filter plugin names, executed in list order.
-	// +optional
-	Enabled []string `json:"enabled,omitempty"`
-}
-
-// Score lists the score plugins enabled by a profile with their weights.
-type Score struct {
-	// Enabled score plugins with weights. Weight must be greater than 0.
+	Filter []string `json:"filter,omitempty"`
+	// Score lists the score plugins enabled by this profile, each with its
+	// weight in the final score sum. Weight must be greater than 0.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
-	Enabled []PluginWithWeight `json:"enabled,omitempty"`
+	Score []PluginWithWeight `json:"score,omitempty"`
 }
 
 // PluginWithWeight pairs a score plugin name with its weight.

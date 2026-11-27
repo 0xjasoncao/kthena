@@ -3687,9 +3687,7 @@ func TestSchedulerProfileUpdateEventGatedOnSpecChange(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "p1", ResourceVersion: "1"},
 		Spec: aiv1alpha1.SchedulerProfileSpec{
 			Plugins: aiv1alpha1.Plugins{
-				Score: aiv1alpha1.Score{
-					Enabled: []aiv1alpha1.PluginWithWeight{{Name: "random", Weight: 1}},
-				},
+				Score: []aiv1alpha1.PluginWithWeight{{Name: "random", Weight: 1}},
 			},
 		},
 	}
@@ -3715,7 +3713,7 @@ func TestSchedulerProfileUpdateEventGatedOnSpecChange(t *testing.T) {
 	// Real spec change: event fires.
 	changed := profile.DeepCopy()
 	changed.ResourceVersion = "3"
-	changed.Spec.Plugins.Score.Enabled[0].Weight = 2
+	changed.Spec.Plugins.Score[0].Weight = 2
 	s.AddOrUpdateSchedulerProfile(changed)
 	select {
 	case data := <-events:

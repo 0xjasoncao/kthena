@@ -456,49 +456,49 @@ func (m *PluginChainManager) buildChain(profile *aiv1alpha1.SchedulerProfile) (c
 	}
 
 	seenFilters := sets.New[string]()
-	for i, name := range profile.Spec.Plugins.Filter.Enabled {
+	for i, name := range profile.Spec.Plugins.Filter {
 		meta, ok := plugins.GetPlugin(name)
 		if !ok || meta.NewFilter == nil {
-			return nil, fmt.Errorf("plugins.filter.enabled[%d]: plugin %q cannot be used as a filter", i, name)
+			return nil, fmt.Errorf("plugins.filter[%d]: plugin %q cannot be used as a filter", i, name)
 		}
 		if seenFilters.Has(name) {
-			return nil, fmt.Errorf("plugins.filter.enabled[%d]: duplicate plugin %q", i, name)
+			return nil, fmt.Errorf("plugins.filter[%d]: duplicate plugin %q", i, name)
 		}
 		seenFilters.Insert(name)
 		pluginCtx := base
 		pluginCtx.Args = argsByPlugin[name]
 		f, err := meta.NewFilter(pluginCtx)
 		if err != nil {
-			return nil, fmt.Errorf("plugins.filter.enabled[%d] (%s): %w", i, name, err)
+			return nil, fmt.Errorf("plugins.filter[%d] (%s): %w", i, name, err)
 		}
 		if f == nil {
-			return nil, fmt.Errorf("plugins.filter.enabled[%d] (%s): builder returned nil", i, name)
+			return nil, fmt.Errorf("plugins.filter[%d] (%s): builder returned nil", i, name)
 		}
 		filters = append(filters, f)
 	}
 
 	seenScores := sets.New[string]()
-	enabledScoreNames := make([]string, 0, len(profile.Spec.Plugins.Score.Enabled))
-	for i, pw := range profile.Spec.Plugins.Score.Enabled {
+	enabledScoreNames := make([]string, 0, len(profile.Spec.Plugins.Score))
+	for i, pw := range profile.Spec.Plugins.Score {
 		meta, ok := plugins.GetPlugin(pw.Name)
 		if !ok || meta.NewScore == nil {
-			return nil, fmt.Errorf("plugins.score.enabled[%d]: plugin %q cannot be used as a score plugin", i, pw.Name)
+			return nil, fmt.Errorf("plugins.score[%d]: plugin %q cannot be used as a score plugin", i, pw.Name)
 		}
 		if seenScores.Has(pw.Name) {
-			return nil, fmt.Errorf("plugins.score.enabled[%d]: duplicate plugin %q", i, pw.Name)
+			return nil, fmt.Errorf("plugins.score[%d]: duplicate plugin %q", i, pw.Name)
 		}
 		seenScores.Insert(pw.Name)
 		if pw.Weight <= 0 {
-			return nil, fmt.Errorf("plugins.score.enabled[%d] (%s): weight must be greater than 0, got %d", i, pw.Name, pw.Weight)
+			return nil, fmt.Errorf("plugins.score[%d] (%s): weight must be greater than 0, got %d", i, pw.Name, pw.Weight)
 		}
 		pluginCtx := base
 		pluginCtx.Args = argsByPlugin[pw.Name]
 		sc, err := meta.NewScore(pluginCtx)
 		if err != nil {
-			return nil, fmt.Errorf("plugins.score.enabled[%d] (%s): %w", i, pw.Name, err)
+			return nil, fmt.Errorf("plugins.score[%d] (%s): %w", i, pw.Name, err)
 		}
 		if sc == nil {
-			return nil, fmt.Errorf("plugins.score.enabled[%d] (%s): builder returned nil", i, pw.Name)
+			return nil, fmt.Errorf("plugins.score[%d] (%s): builder returned nil", i, pw.Name)
 		}
 		scores = append(scores, framework.WeightedScorePlugin{
 			Plugin: sc,
@@ -508,7 +508,7 @@ func (m *PluginChainManager) buildChain(profile *aiv1alpha1.SchedulerProfile) (c
 	}
 
 	if err := plugins.ValidateScorePluginCombination(enabledScoreNames); err != nil {
-		return nil, fmt.Errorf("plugins.score.enabled: %w", err)
+		return nil, fmt.Errorf("plugins.score: %w", err)
 	}
 
 	return &PluginChain{
