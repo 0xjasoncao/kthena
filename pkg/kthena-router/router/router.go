@@ -178,10 +178,9 @@ func NewRouter(store datastore.Store, routerConfigPath string, transportRegistry
 		klog.Fatalf("failed to parse router config: %v", err)
 	}
 
-	chainManager := scheduler.NewPluginChainManager(store)
-	err = chainManager.InitGlobalPluginChain(routerConfig)
+	chainManager, err := scheduler.NewPluginChainManager(store, routerConfig)
 	if err != nil {
-		klog.Fatalf("failed to build global plugin chain: %v", err)
+		klog.Fatalf("plugin chain manager: %v", err)
 	}
 
 	sessionStickyStore, err := sessionsticky.NewStore(routerConfig.SessionSticky)

@@ -48,7 +48,8 @@ func newProfileStatusTestController(t *testing.T) (*ProfileStatusController, *kt
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	kthenaInformerFactory := informersv1alpha1.NewSharedInformerFactory(kthenaClient, 0)
 	store := newStoreWithMockBackend()
-	chainManager := scheduler.NewPluginChainManager(store)
+	chainManager, err := scheduler.NewPluginChainManager(store, nil)
+	require.NoError(t, err)
 	controller, err := NewProfileStatusController(kthenaInformerFactory, chainManager, kthenaClient)
 	require.NoError(t, err)
 	return controller, kthenaClient, store, chainManager, kthenaInformerFactory, kubeInformerFactory

@@ -508,8 +508,8 @@ func TestScheduleStickyPod(t *testing.T) {
 // the router builds when no scheduler section is configured.
 func newDefaultTestChain(t *testing.T, store datastore.Store) *PluginChain {
 	t.Helper()
-	m := NewPluginChainManager(store)
-	require.NoError(t, m.InitGlobalPluginChain(nil))
+	m, err := NewPluginChainManager(store, nil)
+	require.NoError(t, err)
 	return m.globalChain
 }
 
@@ -761,8 +761,8 @@ func TestPDSchedulerFiltersOverloadedDecodePod(t *testing.T) {
 // BenchmarkRunScorePlugins measures the scoring loop at default verbosity
 func BenchmarkRunScorePlugins(b *testing.B) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
-	if err := m.InitGlobalPluginChain(nil); err != nil {
+	m, err := NewPluginChainManager(store, nil)
+	if err != nil {
 		b.Fatal(err)
 	}
 	scheduler := &SchedulerImpl{store: store}

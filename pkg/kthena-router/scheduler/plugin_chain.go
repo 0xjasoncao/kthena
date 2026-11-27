@@ -225,20 +225,26 @@ func (m *PluginChainManager) reconcileStripe(key types.NamespacedName) *sync.Mut
 	return &m.reconcileLocks[h.Sum32()%reconcileStripes]
 }
 
-// NewPluginChainManager registers SchedulerProfile store callbacks; the
-// store must be shared with the SchedulerProfile controller.
-func NewPluginChainManager(store datastore.Store) *PluginChainManager {
+// NewPluginChainManager builds the global chain from routerConfig and returns
+// a manager ready to serve it and per-profile chains.
+func NewPluginChainManager(store datastore.Store, routerConfig *conf.RouterConfiguration) (*PluginChainManager, error) {
+	globalChain, err := buildGlobalPluginChain(store, routerConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build global plugin chain: %w", err)
+	}
+
 	m := &PluginChainManager{
 		store:           store,
 		chains:          make(map[types.NamespacedName]*PluginChain),
 		buildErrs:       make(map[types.NamespacedName]error),
 		pendingNotifies: make(map[types.NamespacedName]struct{}),
 		statusNotify:    make(chan struct{}, 1),
+		globalChain:     globalChain,
 	}
 	m.notificationsEnabled.Store(true)
 	store.RegisterCallback("SchedulerProfile", m.onProfileEvent)
 	store.RegisterCallback("SchedulerProfileReference", m.onProfileReferenceEvent)
-	return m
+	return m, nil
 }
 
 // DisableNotifications stops signaling build-status changes; the file source
@@ -565,9 +571,13 @@ func (m *PluginChainManager) acquireCachedProfile(key types.NamespacedName) (*Pl
 	return nil, nil
 }
 
-// InitGlobalPluginChain builds the global chain from the router scheduler
-// config; the default plugin set is used when routerConfig is nil.
-func (m *PluginChainManager) InitGlobalPluginChain(routerConfig *conf.RouterConfiguration) error {
+// buildGlobalPluginChain builds the global chain from the router scheduler
+// config, the legacy lenient path kept separate from the per-profile build:
+// unknown plugins are skipped, a random plugin conflicting with other score
+// plugins is removed, and only the least-latency and least-request plugin
+// arguments are validated. The default plugin set is used when routerConfig
+// is nil. The returned chain has no builtFrom, marking it as the global chain.
+func buildGlobalPluginChain(store datastore.Store, routerConfig *conf.RouterConfiguration) (*PluginChain, error) {
 	scorePluginMap := map[string]int{
 		"least-request": 1,
 		"least-latency": 1,
@@ -588,7 +598,7 @@ func (m *PluginChainManager) InitGlobalPluginChain(routerConfig *conf.RouterConf
 	} else {
 		scorePluginMap, filterPlugins, pluginsArgMap, err = conf.LoadSchedulerConfig(&routerConfig.Scheduler)
 		if err != nil {
-			return fmt.Errorf("failed to load scheduler config: %w", err)
+			return nil, fmt.Errorf("failed to load scheduler config: %w", err)
 		}
 	}
 
@@ -602,19 +612,19 @@ func (m *PluginChainManager) InitGlobalPluginChain(routerConfig *conf.RouterConf
 	// from pod selection, so it is rejected rather than guessed at.
 	for name, weight := range scorePluginMap {
 		if weight <= 0 {
-			return fmt.Errorf("score plugin %q must set a weight greater than 0, got %d", name, weight)
+			return nil, fmt.Errorf("score plugin %q must set a weight greater than 0, got %d", name, weight)
 		}
 	}
 
 	for name, arg := range pluginsArgMap {
 		if name == plugins.LeastLatencyPluginName || name == plugins.LeastRequestPluginName {
 			if err := plugins.ValidatePluginArgs(name, arg); err != nil {
-				return fmt.Errorf("invalid %s plugin configuration: %w", name, err)
+				return nil, fmt.Errorf("invalid %s plugin configuration: %w", name, err)
 			}
 		}
 	}
 
-	base := plugins.BuildContext{Store: m.store}
+	base := plugins.BuildContext{Store: store}
 	var filters []framework.FilterPlugin
 	var scores []framework.WeightedScorePlugin
 
@@ -628,10 +638,10 @@ func (m *PluginChainManager) InitGlobalPluginChain(routerConfig *conf.RouterConf
 		pluginCtx.Args = pluginsArgMap[pluginName]
 		f, err := meta.NewFilter(pluginCtx)
 		if err != nil {
-			return fmt.Errorf("failed to build filter plugin %s: %w", pluginName, err)
+			return nil, fmt.Errorf("failed to build filter plugin %s: %w", pluginName, err)
 		}
 		if f == nil {
-			return fmt.Errorf("failed to build filter plugin %s: builder returned nil", pluginName)
+			return nil, fmt.Errorf("failed to build filter plugin %s: builder returned nil", pluginName)
 		}
 		filters = append(filters, f)
 	}
@@ -645,18 +655,17 @@ func (m *PluginChainManager) InitGlobalPluginChain(routerConfig *conf.RouterConf
 		pluginCtx.Args = pluginsArgMap[pluginName]
 		sc, err := meta.NewScore(pluginCtx)
 		if err != nil {
-			return fmt.Errorf("failed to build score plugin %s: %w", pluginName, err)
+			return nil, fmt.Errorf("failed to build score plugin %s: %w", pluginName, err)
 		}
 		if sc == nil {
-			return fmt.Errorf("failed to build score plugin %s: builder returned nil", pluginName)
+			return nil, fmt.Errorf("failed to build score plugin %s: builder returned nil", pluginName)
 		}
 		scores = append(scores, framework.WeightedScorePlugin{Plugin: sc, Weight: weight})
 	}
-	m.globalChain = &PluginChain{
+	return &PluginChain{
 		filters:           filters,
 		scores:            scores,
 		postScheduleHooks: getPostScheduleHooks(scores),
 		syncOnFlight:      chainNeedsOnFlightSync(filters, scores),
-	}
-	return nil
+	}, nil
 }

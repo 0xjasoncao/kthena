@@ -81,12 +81,21 @@ func waitUntil(t *testing.T, timeout time.Duration, cond func() bool, msg string
 	}
 }
 
+// newTestChainManager builds a manager with the default global chain, failing
+// the test if the global chain cannot build.
+func newTestChainManager(t *testing.T, store datastore.Store) *PluginChainManager {
+	t.Helper()
+	m, err := NewPluginChainManager(store, nil)
+	require.NoError(t, err)
+	return m
+}
+
 // TestPluginChainManager_BuildStatusOnProfileEvents drives events through
 // the store (as in production: the controller writes the store, the async
 // callback builds) and checks the reported build outcome.
 func TestPluginChainManager_BuildStatusOnProfileEvents(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 	key := types.NamespacedName{Namespace: "default", Name: "p1"}
 
 	// Chains are lazy: only profiles referenced by a ModelServer in the
@@ -143,7 +152,7 @@ func TestPluginChainManager_BuildStatusOnProfileEvents(t *testing.T) {
 
 func TestPluginChainManager_BuildStatusReportsBuildError(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 	key := types.NamespacedName{Namespace: "default", Name: "p1"}
 
 	// Lazy: a build failure is only reached once something references the
@@ -266,7 +275,7 @@ func TestPluginChainManager_BuildChainValidation(t *testing.T) {
 	}
 
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chain, err := m.buildChain(newTestProfile("p1", tt.spec))
@@ -339,8 +348,8 @@ func TestChainNeedsOnFlightSync(t *testing.T) {
 
 func TestPluginChainManager_AcquireProfile(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
-	require.NoError(t, m.InitGlobalPluginChain(nil))
+	m, err := NewPluginChainManager(store, nil)
+	require.NoError(t, err)
 	// The referencing ModelServers must be in the store: AcquireProfile's
 	// synchronous fallback build commits only for referenced profiles.
 	store.AddOrUpdateModelServer(newModelServerWithProfileRef("default", "ms-built", "built"), nil)
@@ -464,7 +473,7 @@ func TestPluginChainManager_AcquireProfile(t *testing.T) {
 // a changed profile key once its build status changes.
 func TestPluginChainManager_StatusNotifyCarriesKeys(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 
 	store.AddOrUpdateModelServer(newModelServerWithProfileRef("default", "ms", "built"), nil)
 	store.AddOrUpdateSchedulerProfile(validProfile("built"))
@@ -480,7 +489,7 @@ func TestPluginChainManager_StatusNotifyCarriesKeys(t *testing.T) {
 // TestPluginChainManager_StatusNotifyNeverDrops verifies a burst of status
 // changes coalesce in the pending set instead of being dropped.
 func TestPluginChainManager_StatusNotifyNeverDrops(t *testing.T) {
-	m := NewPluginChainManager(datastore.New())
+	m := newTestChainManager(t, datastore.New())
 
 	const burst = 500
 	done := make(chan struct{})
@@ -601,7 +610,7 @@ func TestPluginChain_CloseExactlyOnce(t *testing.T) {
 // skips — no rebuild, no settle hint.
 func TestPluginChainManager_StaleSuccessDiscarded(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 	key := types.NamespacedName{Namespace: "default", Name: "p1"}
 
 	store.AddOrUpdateModelServer(newModelServerWithProfileRef("default", "ms", "p1"), nil)
@@ -643,7 +652,7 @@ func TestPluginChainManager_StaleSuccessDiscarded(t *testing.T) {
 // the profile is already gone (e.g. deleted mid-build).
 func TestPluginChainManager_StaleFailureDiscarded(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 	key := types.NamespacedName{Namespace: "default", Name: "p2"}
 
 	// An add event for a profile that is not in the store (e.g. deleted
@@ -665,7 +674,7 @@ func TestPluginChainManager_StaleFailureDiscarded(t *testing.T) {
 // swaps in a new chain and retires the replaced one.
 func TestPluginChainManager_UpdateReplacesChain(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 	key := types.NamespacedName{Namespace: "default", Name: "p1"}
 
 	store.AddOrUpdateModelServer(newModelServerWithProfileRef("default", "ms", "p1"), nil)
@@ -705,7 +714,7 @@ func TestPluginChainManager_UpdateReplacesChain(t *testing.T) {
 // reference builds nothing.
 func TestPluginChainManager_LazyCreation(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 	key := types.NamespacedName{Namespace: "default", Name: "p1"}
 
 	store.AddOrUpdateSchedulerProfile(validProfile("p1"))
@@ -748,7 +757,7 @@ func TestPluginChainManager_LazyCreation(t *testing.T) {
 // one.
 func TestPluginChainManager_ReferenceSwitchLifecycle(t *testing.T) {
 	store := datastore.New()
-	m := NewPluginChainManager(store)
+	m := newTestChainManager(t, store)
 	a := types.NamespacedName{Namespace: "default", Name: "a"}
 	b := types.NamespacedName{Namespace: "default", Name: "b"}
 
@@ -779,9 +788,9 @@ func TestPluginChainManager_ReferenceSwitchLifecycle(t *testing.T) {
 	}, "the switched-away chain must be retired")
 }
 
-// TestInitGlobalPluginChainRejectsInvalidLeastLatencyWeight mirrors the
+// TestGlobalPluginChainRejectsInvalidLeastLatencyWeight mirrors the
 // conf-level weight validation the global chain must keep enforcing.
-func TestInitGlobalPluginChainRejectsInvalidLeastLatencyWeight(t *testing.T) {
+func TestGlobalPluginChainRejectsInvalidLeastLatencyWeight(t *testing.T) {
 	tt := []struct {
 		name  string
 		value string
@@ -803,16 +812,15 @@ func TestInitGlobalPluginChainRejectsInvalidLeastLatencyWeight(t *testing.T) {
 					}},
 				},
 			}
-			m := NewPluginChainManager(datastore.New())
-			err := m.InitGlobalPluginChain(routerConfig)
+			_, err := NewPluginChainManager(datastore.New(), routerConfig)
 			require.Error(t, err, "expected invalid weight %q to be rejected", tc.value)
 		})
 	}
 }
 
-// TestInitGlobalPluginChainRejectsNonPositiveScoreWeight mirrors the
+// TestGlobalPluginChainRejectsNonPositiveScoreWeight mirrors the
 // conf-level weight validation the global chain must keep enforcing.
-func TestInitGlobalPluginChainRejectsNonPositiveScoreWeight(t *testing.T) {
+func TestGlobalPluginChainRejectsNonPositiveScoreWeight(t *testing.T) {
 	tt := []struct {
 		name      string
 		weight    int
@@ -838,8 +846,7 @@ func TestInitGlobalPluginChainRejectsNonPositiveScoreWeight(t *testing.T) {
 					},
 				},
 			}
-			m := NewPluginChainManager(datastore.New())
-			err := m.InitGlobalPluginChain(routerConfig)
+			m, err := NewPluginChainManager(datastore.New(), routerConfig)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "must set a weight greater than 0")
@@ -855,9 +862,9 @@ func TestInitGlobalPluginChainRejectsNonPositiveScoreWeight(t *testing.T) {
 	}
 }
 
-// TestInitGlobalPluginChainRemovesConflictingRandom checks the legacy lenient
+// TestGlobalPluginChainRemovesConflictingRandom checks the legacy lenient
 // rule: random mixed with other score plugins is dropped, the rest builds.
-func TestInitGlobalPluginChainRemovesConflictingRandom(t *testing.T) {
+func TestGlobalPluginChainRemovesConflictingRandom(t *testing.T) {
 	tests := []struct {
 		name       string
 		enabled    []conf.PluginWithWeight
@@ -901,8 +908,8 @@ func TestInitGlobalPluginChainRemovesConflictingRandom(t *testing.T) {
 					},
 				},
 			}
-			m := NewPluginChainManager(datastore.New())
-			require.NoError(t, m.InitGlobalPluginChain(routerConfig))
+			m, err := NewPluginChainManager(datastore.New(), routerConfig)
+			require.NoError(t, err)
 
 			names := scorePluginNames(m.globalChain.scores)
 			if tt.wantRandom {
@@ -914,9 +921,9 @@ func TestInitGlobalPluginChainRemovesConflictingRandom(t *testing.T) {
 	}
 }
 
-// TestInitGlobalPluginChainRejectsNegativeMaxWaitingRequests mirrors the
+// TestGlobalPluginChainRejectsNegativeMaxWaitingRequests mirrors the
 // conf-level least-request args validation the global chain must keep.
-func TestInitGlobalPluginChainRejectsNegativeMaxWaitingRequests(t *testing.T) {
+func TestGlobalPluginChainRejectsNegativeMaxWaitingRequests(t *testing.T) {
 	tt := []struct {
 		name    string
 		value   int
@@ -938,8 +945,7 @@ func TestInitGlobalPluginChainRejectsNegativeMaxWaitingRequests(t *testing.T) {
 					}},
 				},
 			}
-			m := NewPluginChainManager(datastore.New())
-			err := m.InitGlobalPluginChain(routerConfig)
+			_, err := NewPluginChainManager(datastore.New(), routerConfig)
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "must not be negative")
